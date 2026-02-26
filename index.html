@@ -83,6 +83,9 @@ small { opacity:0.6; }
   <button onclick="startDictation()">🎤</button>
   <button class="primary" onclick="speakCurrent()">Озвучить</button>
   <button class="stop" onclick="stopSpeech()">Стоп</button>
+<button onclick="exportNotes()">Экспорт</button>
+<button onclick="document.getElementById('importFile').click()">Импорт</button>
+<input type="file" id="importFile" accept="application/json" style="display:none" onchange="importNotes(event)">
 </div>
 
 <hr>
@@ -307,6 +310,75 @@ function startDictation() {
   recognition.start();
 }
 
+// ---------------- EXPORT ----------------
+
+function exportNotes() {
+  const tx = db.transaction("notes", "readonly");
+  const store = tx.objectStore("notes");
+  const request = store.getAll();
+
+  request.onsuccess = () => {
+    const data = JSON.stringify(request.result, null, 2);
+
+    const blob = new Blob([data], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "mynote-backup.json";
+    a.click();
+
+    URL.revokeObjectURL(url);
+  };
+}
+
+// ---------------- IMPORT (MERGE) ----------------
+
+function importNotes(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+
+  reader.onload = function(e) {
+    try {
+      const importedNotes = JSON.parse(e.target.result);
+
+      const tx = db.transaction("notes", "readwrite");
+      const store = tx.objectStore("notes");
+
+      const getAllReq = store.getAll();
+
+      getAllReq.onsuccess = () => {
+        const existing = getAllReq.result;
+
+        importedNotes.forEach(note => {
+
+          const duplicate = existing.find(n =>
+            n.created === note.created &&
+            n.title === note.title &&
+            n.content === note.content
+          );
+
+          if (!duplicate) {
+            delete note.id; // чтобы IndexedDB создала новый id
+            store.add(note);
+          }
+        });
+
+        tx.oncomplete = () => {
+          loadNotes();
+          alert("Импорт завершён");
+        };
+      };
+
+    } catch (err) {
+      alert("Ошибка чтения файла");
+    }
+  };
+
+  reader.readAsText(file);
+}
 // ---------------- Service Worker ----------------
 
 if ('serviceWorker' in navigator) {
