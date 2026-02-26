@@ -100,7 +100,7 @@ let editingId = null;
 let currentTagFilter = null;
 
 // ---------------- IndexedDB ----------------
- indexedDB.deleteDatabase("MyNoteDB");
+// indexedDB.deleteDatabase("MyNoteDB");
 const request = indexedDB.open("MyNoteDB", 1);
 
 request.onupgradeneeded = function(e) {
