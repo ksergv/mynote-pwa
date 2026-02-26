@@ -4,6 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="MyNote">
 <title>MyNote</title>
@@ -11,6 +12,7 @@
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#111111">
 <link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
 
 <style>
 body {
@@ -73,7 +75,7 @@ small { opacity: 0.6; }
 <div id="notesList"></div>
 
 <script>
-
+//indexedDB.deleteDatabase("MyNoteDB");
 // ---------------- DB ----------------
 
 let db;
@@ -135,7 +137,7 @@ function loadNotes() {
       div.className = "note-item";
       div.innerHTML = `
         <div class="note-title">${note.title || "(Без заголовка)"}</div>
-        <div>${note.content.substring(0,120)}</div>
+        <div>${(note.content || "").substring(0,120)}</div>
         <small>${new Date(note.updated).toLocaleString()}</small><br>
         <button onclick="editNote(${note.id})">Редактировать</button>
         <button onclick="readNote(${note.id})">▶</button>
@@ -215,26 +217,25 @@ function speakText(text) {
 function stop() {
   speechSynthesis.cancel();
 }
-// ---------------
-let recognition;
+//------------------------speache recognition---
+let recognition = null;
 let isListening = false;
 
 function startDictation() {
 
   if (!('webkitSpeechRecognition' in window)) {
-    alert("Голосовой ввод не поддерживается");
+    alert("Голосовой ввод не поддерживается на этом устройстве");
     return;
   }
 
-  if (isListening) {
-    recognition.stop();
-    return;
-  }
+  if (isListening) return;
 
+  // создаём НОВЫЙ экземпляр каждый раз
   recognition = new webkitSpeechRecognition();
+
   recognition.lang = "ru-RU";
-  recognition.continuous = true;
-  recognition.interimResults = true;
+  recognition.continuous = false;      // важно для iOS
+  recognition.interimResults = false;
 
   recognition.onstart = () => {
     isListening = true;
@@ -242,20 +243,19 @@ function startDictation() {
   };
 
   recognition.onresult = (event) => {
-    let finalTranscript = "";
+    const text = event.results[0][0].transcript;
+    const field = document.getElementById("content");
+    field.value += (field.value ? " " : "") + text;
+  };
 
-    for (let i = event.resultIndex; i < event.results.length; ++i) {
-      if (event.results[i].isFinal) {
-        finalTranscript += event.results[i][0].transcript;
-      }
-    }
-
-    document.getElementById("content").value += " " + finalTranscript;
+  recognition.onerror = (event) => {
+    console.log("Ошибка:", event.error);
   };
 
   recognition.onend = () => {
-    isListening = false;
     console.log("⏹ Остановлено");
+    isListening = false;
+    recognition = null;   // ключевой момент
   };
 
   recognition.start();
