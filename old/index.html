@@ -3,15 +3,14 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-
-<title>MyNote</title>
-
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#111111">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="MyNote">
+<title>MyNote</title>
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#111111">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" href="icon-192.png">
 
@@ -32,7 +31,7 @@ input, textarea {
   border: none;
   outline: none;
 }
-textarea { height: 18vh; }
+textarea { height: 20vh; }
 
 button {
   padding: 8px 12px;
@@ -40,30 +39,21 @@ button {
   border-radius: 8px;
   border: none;
   font-size: 14px;
-  cursor: pointer;
 }
 .primary { background: #0a84ff; color: white; }
 .stop { background: #ff453a; color: white; }
-.tag {
-  background:#333;
-  padding:3px 6px;
-  border-radius:6px;
-  margin-right:4px;
-  cursor:pointer;
-}
+
 .note-item {
-  background:#222;
-  padding:10px;
-  margin:8px 0;
-  border-radius:10px;
+  background: #222;
+  padding: 10px;
+  margin: 8px 0;
+  border-radius: 10px;
 }
 .note-title {
-  font-weight:bold;
+  font-weight: bold;
+  margin-bottom: 4px;
 }
-small { opacity:0.6; }
-.filter-bar {
-  margin-bottom:10px;
-}
+small { opacity: 0.6; }
 </style>
 </head>
 <body>
@@ -71,35 +61,25 @@ small { opacity:0.6; }
 <h2>MyNote</h2>
 
 <input id="title" placeholder="Заголовок" />
-<textarea id="content" placeholder="Текст заметки..."
-  autocapitalize="sentences"
-  autocomplete="on"
-  autocorrect="on"
-  spellcheck="true"></textarea>
-<input id="tags" placeholder="Теги через запятую (пример: идея, работа)" />
+<textarea id="content" placeholder="Текст заметки..."></textarea>
 
 <div>
   <button class="primary" onclick="saveNote()">Сохранить</button>
-  <button onclick="startDictation()">🎤</button>
+  <button onclick="pasteFromClipboard()">Вставить</button>
   <button class="primary" onclick="speakCurrent()">Озвучить</button>
-  <button class="stop" onclick="stopSpeech()">Стоп</button>
+  <button onclick="startDictation()" id="micBtn">🎤</button>
+  <button class="stop" onclick="stop()">Стоп</button>
 </div>
 
 <hr>
-
-<div class="filter-bar">
-  <span id="filterInfo"></span>
-  <button onclick="clearFilter()">Сбросить фильтр</button>
-</div>
-
 <div id="notesList"></div>
 
 <script>
+//indexedDB.deleteDatabase("MyNoteDB");
+// ---------------- DB ----------------
+
 let db;
 let editingId = null;
-let currentTagFilter = null;
-
-// ---------------- IndexedDB ----------------
 
 const request = indexedDB.open("MyNoteDB", 1);
 
@@ -116,14 +96,17 @@ request.onsuccess = function(e) {
 // ---------------- CRUD ----------------
 
 function saveNote() {
+if (isListening) {
+  alert("Сначала завершите диктовку");
+  return;
+}
+  if (!db) {
+    alert("База данных ещё не инициализирована");
+    return;
+  }
 
   const title = document.getElementById("title").value.trim();
   const content = document.getElementById("content").value.trim();
-  const tagsInput = document.getElementById("tags").value.trim();
-
-  const tags = tagsInput
-    ? tagsInput.split(",").map(t => t.trim().toLowerCase()).filter(t => t)
-    : [];
 
   if (!title && !content) return;
 
@@ -133,7 +116,6 @@ function saveNote() {
   const noteData = {
     title: title || "(Без заголовка)",
     content: content || "",
-    tags: tags,
     updated: new Date().toISOString()
   };
 
@@ -149,6 +131,10 @@ function saveNote() {
     clearForm();
     loadNotes();
   };
+
+  tx.onerror = (e) => {
+    console.error("Ошибка транзакции:", e);
+  };
 }
 
 function loadNotes() {
@@ -160,37 +146,17 @@ function loadNotes() {
   const request = store.getAll();
 
   request.onsuccess = () => {
-
-    let notes = request.result.reverse();
-
-    if (currentTagFilter) {
-      notes = notes.filter(n =>
-        (n.tags || []).includes(currentTagFilter)
-      );
-    }
-
-    document.getElementById("filterInfo").innerText =
-      currentTagFilter ? "Фильтр: #" + currentTagFilter : "";
-
-    notes.forEach(note => {
-
+    request.result.reverse().forEach(note => {
       const div = document.createElement("div");
       div.className = "note-item";
-
       div.innerHTML = `
-        <div class="note-title">${note.title}</div>
+        <div class="note-title">${note.title || "(Без заголовка)"}</div>
         <div>${(note.content || "").substring(0,120)}</div>
-        <small>${new Date(note.updated).toLocaleString()}</small>
-        <div>
-          ${(note.tags || []).map(tag =>
-            `<span class="tag" onclick="filterByTag('${tag}')">#${tag}</span>`
-          ).join("")}
-        </div>
+        <small>${new Date(note.updated).toLocaleString()}</small><br>
         <button onclick="editNote(${note.id})">Редактировать</button>
         <button onclick="readNote(${note.id})">▶</button>
         <button onclick="deleteNote(${note.id})">Удалить</button>
       `;
-
       list.appendChild(div);
     });
   };
@@ -203,12 +169,8 @@ function editNote(id) {
 
   request.onsuccess = () => {
     const note = request.result;
-
     document.getElementById("title").value = note.title;
     document.getElementById("content").value = note.content;
-    document.getElementById("tags").value =
-      (note.tags || []).join(", ");
-
     editingId = note.id;
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -224,23 +186,21 @@ function deleteNote(id) {
 function clearForm() {
   document.getElementById("title").value = "";
   document.getElementById("content").value = "";
-  document.getElementById("tags").value = "";
   editingId = null;
 }
 
-// ---------------- Tags ----------------
+// ---------------- Clipboard ----------------
 
-function filterByTag(tag) {
-  currentTagFilter = tag;
-  loadNotes();
+async function pasteFromClipboard() {
+  try {
+    const text = await navigator.clipboard.readText();
+    document.getElementById("content").value += text;
+  } catch {
+    alert("Нет доступа к буферу обмена");
+  }
 }
 
-function clearFilter() {
-  currentTagFilter = null;
-  loadNotes();
-}
-
-// ---------------- Speech (TTS) ----------------
+// ---------------- Speech ----------------
 
 function speakCurrent() {
   const text = document.getElementById("content").value;
@@ -262,35 +222,38 @@ function speakText(text) {
 
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = "ru-RU";
+  utterance.rate = 1;
+
   speechSynthesis.cancel();
   speechSynthesis.speak(utterance);
 }
 
-function stopSpeech() {
+function stop() {
   speechSynthesis.cancel();
 }
-
-// ---------------- Voice Input (iPhone) ----------------
-
+//------------------------speache recognition---
 let recognition = null;
 let isListening = false;
 
 function startDictation() {
 
   if (!('webkitSpeechRecognition' in window)) {
-    alert("Голосовой ввод не поддерживается");
+    alert("Голосовой ввод не поддерживается на этом устройстве");
     return;
   }
 
   if (isListening) return;
 
+  // создаём НОВЫЙ экземпляр каждый раз
   recognition = new webkitSpeechRecognition();
+
   recognition.lang = "ru-RU";
-  recognition.continuous = false;
+  recognition.continuous = false;      // важно для iOS
   recognition.interimResults = false;
 
   recognition.onstart = () => {
     isListening = true;
+    console.log("🎤 Слушаю...");
   };
 
   recognition.onresult = (event) => {
@@ -299,20 +262,24 @@ function startDictation() {
     field.value += (field.value ? " " : "") + text;
   };
 
+  recognition.onerror = (event) => {
+    console.log("Ошибка:", event.error);
+  };
+
   recognition.onend = () => {
+    console.log("⏹ Остановлено");
     isListening = false;
-    recognition = null;
+    recognition = null;   // ключевой момент
   };
 
   recognition.start();
 }
-
-// ---------------- Service Worker ----------------
+// ---------------- SW ----------------
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js');
 }
-</script>
 
+</script>
 </body>
 </html>
