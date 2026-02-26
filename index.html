@@ -75,7 +75,7 @@ small { opacity: 0.6; }
 <div id="notesList"></div>
 
 <script>
-//indexedDB.deleteDatabase("MyNoteDB");
+indexedDB.deleteDatabase("MyNoteDB");
 // ---------------- DB ----------------
 
 let db;
@@ -96,16 +96,26 @@ request.onsuccess = function(e) {
 // ---------------- CRUD ----------------
 
 function saveNote() {
+if (isListening) {
+  alert("Сначала завершите диктовку");
+  return;
+}
+  if (!db) {
+    alert("База данных ещё не инициализирована");
+    return;
+  }
+
   const title = document.getElementById("title").value.trim();
   const content = document.getElementById("content").value.trim();
+
   if (!title && !content) return;
 
   const tx = db.transaction("notes", "readwrite");
   const store = tx.objectStore("notes");
 
   const noteData = {
-    title,
-    content,
+    title: title || "(Без заголовка)",
+    content: content || "",
     updated: new Date().toISOString()
   };
 
@@ -120,6 +130,10 @@ function saveNote() {
   tx.oncomplete = () => {
     clearForm();
     loadNotes();
+  };
+
+  tx.onerror = (e) => {
+    console.error("Ошибка транзакции:", e);
   };
 }
 
