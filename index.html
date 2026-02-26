@@ -65,6 +65,7 @@ small { opacity: 0.6; }
   <button class="primary" onclick="saveNote()">Сохранить</button>
   <button onclick="pasteFromClipboard()">Вставить</button>
   <button class="primary" onclick="speakCurrent()">Озвучить</button>
+  <button onclick="startDictation()" id="micBtn">🎤</button>
   <button class="stop" onclick="stop()">Стоп</button>
 </div>
 
@@ -214,7 +215,51 @@ function speakText(text) {
 function stop() {
   speechSynthesis.cancel();
 }
+// ---------------
+let recognition;
+let isListening = false;
 
+function startDictation() {
+
+  if (!('webkitSpeechRecognition' in window)) {
+    alert("Голосовой ввод не поддерживается");
+    return;
+  }
+
+  if (isListening) {
+    recognition.stop();
+    return;
+  }
+
+  recognition = new webkitSpeechRecognition();
+  recognition.lang = "ru-RU";
+  recognition.continuous = true;
+  recognition.interimResults = true;
+
+  recognition.onstart = () => {
+    isListening = true;
+    console.log("🎤 Слушаю...");
+  };
+
+  recognition.onresult = (event) => {
+    let finalTranscript = "";
+
+    for (let i = event.resultIndex; i < event.results.length; ++i) {
+      if (event.results[i].isFinal) {
+        finalTranscript += event.results[i][0].transcript;
+      }
+    }
+
+    document.getElementById("content").value += " " + finalTranscript;
+  };
+
+  recognition.onend = () => {
+    isListening = false;
+    console.log("⏹ Остановлено");
+  };
+
+  recognition.start();
+}
 // ---------------- SW ----------------
 
 if ('serviceWorker' in navigator) {
