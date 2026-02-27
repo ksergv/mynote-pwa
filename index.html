@@ -271,17 +271,27 @@ function readNote(id) {
   };
 }
 
+function detectLanguage(text) {
+
+  const ukrainianPattern = /[іїєґІЇЄҐ]/;
+
+  if (ukrainianPattern.test(text)) {
+    return "uk-UA";
+  }
+
+  return "ru-RU";
+}
+
 function speakText(text) {
   if (!text) return;
 
+  const lang = detectLanguage(text);
+
   const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = "ru-RU";
+  utterance.lang = lang;
+
   speechSynthesis.cancel();
   speechSynthesis.speak(utterance);
-}
-
-function stopSpeech() {
-  speechSynthesis.cancel();
 }
 
 // ---------------- Voice Input (iPhone) ----------------
