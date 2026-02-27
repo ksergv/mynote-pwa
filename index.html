@@ -272,14 +272,8 @@ function readNote(id) {
 }
 
 function detectLanguage(text) {
-
   const ukrainianPattern = /[іїєґІЇЄҐ]/;
-
-  if (ukrainianPattern.test(text)) {
-    return "uk-UA";
-  }
-
-  return "ru-RU";
+  return ukrainianPattern.test(text) ? "uk-UA" : "ru-RU";
 }
 
 function speakText(text) {
@@ -288,12 +282,25 @@ function speakText(text) {
   const lang = detectLanguage(text);
 
   const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = lang;
+
+  const voices = speechSynthesis.getVoices();
+
+  const selectedVoice = voices.find(v =>
+    v.lang === lang || v.lang.startsWith(lang.split("-")[0])
+  );
+
+  if (selectedVoice) {
+    utterance.voice = selectedVoice;
+  } else {
+    utterance.lang = lang;
+  }
 
   speechSynthesis.cancel();
   speechSynthesis.speak(utterance);
 }
-
+function stopSpeech() {
+  speechSynthesis.cancel();
+}
 // ---------------- Voice Input (iPhone) ----------------
 
 let recognition = null;
