@@ -596,7 +596,21 @@ function setHeading(tag) {
 }
 
 function setColor(color) {
-  document.execCommand('foreColor', false, color);
+
+  const selection = window.getSelection();
+
+  if (!selection.rangeCount) return;
+
+  const range = selection.getRangeAt(0);
+
+  if (range.collapsed) return; // если нет выделения
+
+  const span = document.createElement("span");
+  span.style.color = color;
+
+  range.surroundContents(span);
+
+  selection.removeAllRanges();
 }
 
 function addImage() {
