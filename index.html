@@ -120,6 +120,25 @@ small { opacity:0.6; }
 .editor {
   white-space: pre-wrap;
 }
+.palette {
+  display: none;
+  position: absolute;
+  margin-top: 5px;
+  padding: 6px;
+  background: #2c2c2e;
+  border-radius: 8px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+  z-index: 1000;
+}
+
+.palette button {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  margin: 4px;
+  cursor: pointer;
+}
 </style>
 </head>
 <body>
@@ -143,8 +162,16 @@ small { opacity:0.6; }
   <button onclick="format('justifyCenter')">⬌</button>
   <button onclick="format('justifyRight')">➡</button>
 
- <button onclick="openBgPicker()">🖍</button>
-<input type="color" id="bgPicker" style="display:none" onchange="setHighlight(this.value)">
+ <button onclick="togglePalette()">🖍</button>
+
+<div id="colorPalette" class="palette">
+  <button style="background:#fff59d" onclick="highlightColor('#fff59d')"></button>
+  <button style="background:#a5d6a7" onclick="highlightColor('#a5d6a7')"></button>
+  <button style="background:#90caf9" onclick="highlightColor('#90caf9')"></button>
+  <button style="background:#ffab91" onclick="highlightColor('#ffab91')"></button>
+  <button style="background:#f48fb1" onclick="highlightColor('#f48fb1')"></button>
+  <button style="background:#e0e0e0" onclick="highlightColor('#e0e0e0')"></button>
+</div>
 
   <button onclick="addImage()">📷</button>
   <button onclick="toggleHTML()">HTML</button>
@@ -595,18 +622,23 @@ function setHeading(tag) {
   document.execCommand('formatBlock', false, tag);
 }
 
-function openBgPicker() {
-  if (isHTMLMode) return;
-  document.getElementById("bgPicker").click();
-}
-
-function openBgPicker() {
-  if (isHTMLMode) return;
-  document.getElementById("bgPicker").click();
-}
-function setHighlight(color) {
+let savedRange = null;
+function togglePalette() {
 
   if (isHTMLMode) return;
+
+  const palette = document.getElementById("colorPalette");
+
+  const selection = window.getSelection();
+  if (selection.rangeCount) {
+    savedRange = selection.getRangeAt(0);
+  }
+
+  palette.style.display =
+    palette.style.display === "block" ? "none" : "block";
+}
+
+function wrapSelection(startTag, endTag) {
 
   const selection = window.getSelection();
   if (!selection.rangeCount) return;
@@ -614,26 +646,79 @@ function setHighlight(color) {
   const range = selection.getRangeAt(0);
   if (range.collapsed) return;
 
-  // Используем встроенную команду браузера
-  document.execCommand("backColor", false, color);
+  const selectedText = range.toString();
+
+  const wrappedHTML = startTag + selectedText + endTag;
+
+  range.deleteContents();
+
+  const temp = document.createElement("div");
+  temp.innerHTML = wrappedHTML;
+
+  const frag = document.createDocumentFragment();
+  let node;
+  while ((node = temp.firstChild)) {
+    frag.appendChild(node);
+  }
+
+  range.insertNode(frag);
+
+  selection.removeAllRanges();
 }
 
-function addImage() {
-  document.getElementById("imgInput").click();
+function unwrap(element) {
+  const parent = element.parentNode;
+  while (element.firstChild) {
+    parent.insertBefore(element.firstChild, element);
+  }
+  parent.removeChild(element);
 }
 
-function insertImage(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    document.execCommand("insertImage", false, e.target.result);
-  };
-  reader.readAsDataURL(file);
+function rgbToHex(rgb) {
+  const result = rgb.match(/\d+/g);
+  if (!result) return rgb;
+  return "#" + result
+    .slice(0,3)
+    .map(x => parseInt(x).toString(16).padStart(2,'0'))
+    .join('');
 }
-function openColorPicker() {
-  document.getElementById("colorPicker").click();
+function highlightColor(color) {
+
+  if (!savedRange) return;
+
+  const selection = window.getSelection();
+  selection.removeAllRanges();
+  selection.addRange(savedRange);
+
+  const range = selection.getRangeAt(0);
+  const selectedText = range.toString();
+  if (!selectedText) return;
+
+  const parent = range.commonAncestorContainer.parentElement;
+
+  // Если уже внутри span с background
+  if (parent && parent.tagName === "SPAN" && parent.style.backgroundColor) {
+
+    const current = parent.style.backgroundColor;
+
+    // Если цвет тот же — убираем подсветку
+    if (current === color || rgbToHex(current) === color.toLowerCase()) {
+      unwrap(parent);
+    } else {
+      // Иначе просто меняем цвет
+      parent.style.backgroundColor = color;
+    }
+
+  } else {
+    // Если нет подсветки — добавляем
+    wrapSelection(
+      `<span style="background:${color}">`,
+      `</span>`
+    );
+  }
+
+  document.getElementById("colorPalette").style.display = "none";
+  savedRange = null;
 }
 // ---------------- Service Worker ----------------
 
