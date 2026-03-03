@@ -143,8 +143,8 @@ small { opacity:0.6; }
   <button onclick="format('justifyCenter')">⬌</button>
   <button onclick="format('justifyRight')">➡</button>
 
-  <button onclick="openColorPicker()">🎨</button>
-<input type="color" id="colorPicker" style="display:none" onchange="setColor(this.value)">
+ <button onclick="openBgPicker()">🖍</button>
+<input type="color" id="bgPicker" style="display:none" onchange="setHighlight(this.value)">
 
   <button onclick="addImage()">📷</button>
   <button onclick="toggleHTML()">HTML</button>
@@ -595,7 +595,16 @@ function setHeading(tag) {
   document.execCommand('formatBlock', false, tag);
 }
 
-function setColor(color) {
+function openBgPicker() {
+  if (isHTMLMode) return;
+  document.getElementById("bgPicker").click();
+}
+
+function openBgPicker() {
+  if (isHTMLMode) return;
+  document.getElementById("bgPicker").click();
+}
+function setHighlight(color) {
 
   if (isHTMLMode) return;
 
@@ -605,14 +614,8 @@ function setColor(color) {
   const range = selection.getRangeAt(0);
   if (range.collapsed) return;
 
-  const span = document.createElement("span");
-  span.style.color = color;
-
-  const contents = range.extractContents();
-  span.appendChild(contents);
-  range.insertNode(span);
-
-  selection.removeAllRanges();
+  // Используем встроенную команду браузера
+  document.execCommand("hiliteColor", false, color);
 }
 
 function addImage() {
