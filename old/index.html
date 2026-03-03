@@ -68,45 +68,6 @@ small { opacity:0.6; }
 .filter-bar {
   margin-bottom:10px;
 }
-.toolbar {
-  margin-bottom:8px;
-}
-.toolbar button {
-  margin:2px;
-  padding:6px 8px;
-}
-.editor {
-  min-height: 150px;
-  padding: 20px;
-  border-radius: 10px;
-  background: #fefefe;
-  outline: none;
-
-  line-height: 1.5;
-}
-
-.editor.html-mode {
-  white-space: pre-wrap;
-  overflow-wrap: break-word;
-  word-break: break-word;
-}
-.editor p {
-  margin: 0 0 10px 0;   /* отступ между абзацами */
-  color:#111;
-}
-
-.editor ul,
-.editor ol {
-  margin: 8px 0 8px 0;
-}
-.editor img {
-  max-width:100%;
-  border-radius:8px;
-  margin:6px 0;
-}
-.editor {
-  white-space: pre-wrap;
-}
 </style>
 </head>
 <body>
@@ -114,36 +75,14 @@ small { opacity:0.6; }
 <h2>MyNote</h2>
 
 <input id="title" placeholder="Заголовок" />
-<div class="toolbar">
-  Редактор: 
-  <button onclick="format('bold')"><b>B</b></button>
-  <button onclick="format('italic')"><i>I</i></button>
-  <button onclick="format('underline')"><u>U</u></button>
-
-  <button onclick="format('insertUnorderedList')">• List</button>
-  <button onclick="format('insertOrderedList')">1. List</button>
-
-  <button onclick="setHeading('h1')">H1</button>
-  <button onclick="setHeading('h2')">H2</button>
-
-  <button onclick="format('justifyLeft')">⬅</button>
-  <button onclick="format('justifyCenter')">⬌</button>
-  <button onclick="format('justifyRight')">➡</button>
-
-  <button onclick="openColorPicker()">🎨</button>
-<input type="color" id="colorPicker" style="display:none" onchange="setColor(this.value)">
-
-  <button onclick="addImage()">📷</button>
-  <button onclick="toggleHTML()">HTML</button>
-</div>
-
-<div id="content" contenteditable="true" class="editor"></div>
-
-<input type="file" id="imgInput" accept="image/*" style="display:none" onchange="insertImage(event)"></br>
+<textarea id="content" placeholder="Текст заметки..."
+  autocapitalize="sentences"
+  autocomplete="on"
+  autocorrect="on"
+  spellcheck="true"></textarea>
 <input id="tags" placeholder="Теги через запятую (пример: идея, работа)" />
 
 <div>
-  Управление:
   <button class="primary" onclick="saveNote()">Сохранить</button>
   <button class="clear" onclick="clearForm()">Очистить</button>
   <button onclick="startDictation()">🎤</button>
@@ -158,7 +97,7 @@ small { opacity:0.6; }
 
 <div class="filter-bar">
   <span id="filterInfo"></span>
- Фильтрация по тегам: <button onclick="clearFilter()">Сбросить фильтр</button>
+  <button onclick="clearFilter()">Сбросить фильтр</button>
 </div>
 
 <div id="notesList"></div>
@@ -167,69 +106,6 @@ small { opacity:0.6; }
 let db;
 let editingId = null;
 let currentTagFilter = null;
-let isHTMLMode = false;
-document.addEventListener("DOMContentLoaded", () => {
-  document.execCommand("defaultParagraphSeparator", false, "p");
-});
-
-function formatHTML(html) {
-
-  const blockTags = ['ul', 'ol']; // только они увеличивают уровень
-  const selfClosing = ['img', 'br', 'hr'];
-
-  let formatted = '';
-  let indent = 0;
-
-  html = html.replace(/>\s+</g, '><');
-
-  const nodes = html.split(/></);
-
-  nodes.forEach((node, index) => {
-
-    if (index !== 0) node = '<' + node;
-    if (index !== nodes.length - 1) node = node + '>';
-
-    const tagMatch = node.match(/^<\/?(\w+)/);
-    const tag = tagMatch ? tagMatch[1].toLowerCase() : null;
-
-    const isClosing = /^<\/\w/.test(node);
-    const isOpening = /^<\w/.test(node) && !isClosing;
-    const isSelfClosingTag = selfClosing.includes(tag);
-
-    if (isClosing && blockTags.includes(tag)) {
-      indent = Math.max(indent - 1, 0);
-    }
-
-    formatted += '  '.repeat(indent) + node + '\n';
-
-    if (isOpening && blockTags.includes(tag) && !isSelfClosingTag) {
-      indent++;
-    }
-  });
-
-  return formatted.trim();
-}
-
-function toggleHTML() {
-  const editor = document.getElementById("content");
-
-  if (!isHTMLMode) {
-    const prettyHTML = formatHTML(editor.innerHTML);
-    editor.textContent = prettyHTML;
-
-    editor.classList.add("html-mode");
-    editor.style.fontFamily = "monospace";
-
-    isHTMLMode = true;
-  } else {
-    editor.innerHTML = editor.textContent;
-
-    editor.classList.remove("html-mode");
-    editor.style.fontFamily = "";
-
-    isHTMLMode = false;
-  }
-}
 
 // ---------------- IndexedDB ----------------
 // indexedDB.deleteDatabase("MyNoteDB");
@@ -249,28 +125,22 @@ request.onsuccess = function(e) {
 
 function saveNote() {
 
-  const titleInput = document.getElementById("title");
-  const editor = document.getElementById("content");
-  const tagsInputEl = document.getElementById("tags");
-
-  const title = titleInput.value.trim();
-  const rawHTML = editor.innerHTML;
-  const textContent = editor.innerText.trim();
-  const tagsInput = tagsInputEl.value.trim();
-
-  // проверяем пустоту корректно
-  if (!title && !textContent) return;
+  const title = document.getElementById("title").value.trim();
+  const content = document.getElementById("content").value.trim();
+  const tagsInput = document.getElementById("tags").value.trim();
 
   const tags = tagsInput
     ? tagsInput.split(",").map(t => t.trim().toLowerCase()).filter(t => t)
     : [];
+
+  if (!title && !content) return;
 
   const tx = db.transaction("notes", "readwrite");
   const store = tx.objectStore("notes");
 
   const noteData = {
     title: title || "(Без заголовка)",
-    content: rawHTML,
+    content: content || "",
     tags: tags,
     updated: new Date().toISOString()
   };
@@ -287,11 +157,6 @@ function saveNote() {
     clearForm();
     loadNotes();
   };
-}
-function stripHTML(html) {
-  const tmp = document.createElement("div");
-  tmp.innerHTML = html;
-  return tmp.textContent || tmp.innerText || "";
 }
 
 function loadNotes() {
@@ -322,10 +187,9 @@ function loadNotes() {
 
       div.innerHTML = `
         <div class="note-title">${note.title}</div>
-        <div>${stripHTML(note.content || "").substring(0,120)}</div>
+        <div>${(note.content || "").substring(0,120)}</div>
         <small>${new Date(note.updated).toLocaleString()}</small>
         <div>
-          Теги(нажатие фильтрует по тегу):
           ${(note.tags || []).map(tag =>
             `<span class="tag" onclick="filterByTag('${tag}')">#${tag}</span>`
           ).join("")}
@@ -349,7 +213,7 @@ function editNote(id) {
     const note = request.result;
 
     document.getElementById("title").value = note.title;
-    document.getElementById("content").innerHTML = note.content;
+    document.getElementById("content").value = note.content;
     document.getElementById("tags").value =
       (note.tags || []).join(", ");
 
@@ -366,13 +230,10 @@ function deleteNote(id) {
 }
 
 function clearForm() {
-  console.log("CLEAR FORM CALLED");
   document.getElementById("title").value = "";
-  const editor = document.getElementById("content");
-  editor.innerHTML = "<p><br></p>";
+  document.getElementById("content").value = "";
   document.getElementById("tags").value = "";
   editingId = null;
-  editor.focus();
 }
 
 // ---------------- Tags ----------------
@@ -387,7 +248,12 @@ function clearFilter() {
   loadNotes();
 }
 
-
+function clearForm() {
+  document.getElementById("title").value = "";
+  document.getElementById("content").value = "";
+  document.getElementById("tags").value = "";
+  editingId = null;
+}
 // ---------------- Speech (TTS) ----------------
 
 function speakCurrent() {
@@ -540,36 +406,6 @@ function importNotes(event) {
   };
 
   reader.readAsText(file);
-}
-
-function format(command) {
-  document.execCommand(command, false, null);
-}
-
-function setHeading(tag) {
-  document.execCommand('formatBlock', false, tag);
-}
-
-function setColor(color) {
-  document.execCommand('foreColor', false, color);
-}
-
-function addImage() {
-  document.getElementById("imgInput").click();
-}
-
-function insertImage(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    document.execCommand("insertImage", false, e.target.result);
-  };
-  reader.readAsDataURL(file);
-}
-function openColorPicker() {
-  document.getElementById("colorPicker").click();
 }
 // ---------------- Service Worker ----------------
 
