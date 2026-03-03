@@ -598,18 +598,19 @@ function setHeading(tag) {
 function setColor(color) {
 
   const selection = window.getSelection();
-
   if (!selection.rangeCount) return;
 
   const range = selection.getRangeAt(0);
-
-  if (range.collapsed) return; // если нет выделения
+  if (range.collapsed) return;
 
   const span = document.createElement("span");
   span.style.color = color;
 
-  range.surroundContents(span);
+  const contents = range.extractContents();
+  span.appendChild(contents);
+  range.insertNode(span);
 
+  // восстановим курсор после span
   selection.removeAllRanges();
 }
 
