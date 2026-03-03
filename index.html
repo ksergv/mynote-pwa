@@ -597,6 +597,8 @@ function setHeading(tag) {
 
 function setColor(color) {
 
+  if (isHTMLMode) return;
+
   const selection = window.getSelection();
   if (!selection.rangeCount) return;
 
@@ -610,7 +612,6 @@ function setColor(color) {
   span.appendChild(contents);
   range.insertNode(span);
 
-  // восстановим курсор после span
   selection.removeAllRanges();
 }
 
