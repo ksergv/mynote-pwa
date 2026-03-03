@@ -1,25 +1,30 @@
-const CACHE_NAME = "mynote-v1";
+const CACHE_NAME = "mynote-v2";
 
 const APP_SHELL = [
   "./",
   "./index.html",
   "./manifest.json",
   "./icon-192.png",
-  "./icon-512.png"
+  "./icon-512.png",
+
+  "./codemirror/codemirror.min.js",
+  "./codemirror/codemirror.min.css",
+  "./codemirror/theme/material-darker.min.css",
+  "./codemirror/mode/xml/xml.min.js",
+  "./codemirror/mode/htmlmixed/htmlmixed.min.js",
+  "./codemirror/addon/edit/closetag.min.js",
+  "./codemirror/addon/edit/closebrackets.min.js"
 ];
 
-// ---------------- INSTALL ----------------
-
+// INSTALL
 self.addEventListener("install", event => {
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(APP_SHELL))
+    caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL))
   );
   self.skipWaiting();
 });
 
-// ---------------- ACTIVATE ----------------
-
+// ACTIVATE
 self.addEventListener("activate", event => {
   event.waitUntil(
     caches.keys().then(keys =>
@@ -33,40 +38,29 @@ self.addEventListener("activate", event => {
   self.clients.claim();
 });
 
-// ---------------- FETCH ----------------
-
+// FETCH
 self.addEventListener("fetch", event => {
 
-  // Только GET запросы
   if (event.request.method !== "GET") return;
 
   event.respondWith(
-    caches.match(event.request)
-      .then(cached => {
+    caches.match(event.request).then(cached => {
 
-        // Если есть в кэше — отдаём
-        if (cached) return cached;
+      if (cached) return cached;
 
-        // Иначе пробуем сеть
-        return fetch(event.request)
-          .then(response => {
+      return fetch(event.request).then(response => {
 
-            // Кэшируем только успешные ответы
-            if (!response || response.status !== 200) {
-              return response;
-            }
+        if (!response || response.status !== 200) return response;
 
-            const responseClone = response.clone();
+        const responseClone = response.clone();
 
-            caches.open(CACHE_NAME)
-              .then(cache => cache.put(event.request, responseClone));
+        caches.open(CACHE_NAME).then(cache => {
+          cache.put(event.request, responseClone);
+        });
 
-            return response;
-          })
-          .catch(() => {
-            // Если офлайн и ресурса нет — возвращаем index
-            return caches.match("./index.html");
-          });
-      })
+        return response;
+
+      }).catch(() => caches.match("./index.html"));
+    })
   );
 });

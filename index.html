@@ -14,7 +14,14 @@
 <meta name="apple-mobile-web-app-title" content="MyNote">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" href="icon-192.png">
+<link rel="stylesheet" href="codemirror/codemirror.min.css">
+<link rel="stylesheet" href="codemirror/theme/material-darker.min.css">
 
+<script src="codemirror/codemirror.min.js"></script>
+<script src="codemirror/mode/xml/xml.min.js"></script>
+<script src="codemirror/mode/htmlmixed/htmlmixed.min.js"></script>
+<script src="codemirror/addon/edit/closetag.min.js"></script>
+<script src="codemirror/addon/edit/closebrackets.min.js"></script>
 <style>
 body {
   font-family: -apple-system, system-ui, sans-serif;
@@ -86,10 +93,16 @@ small { opacity:0.6; }
 }
 
 .editor.html-mode {
+  font-family: monospace;
   white-space: pre-wrap;
   overflow-wrap: break-word;
-  word-break: break-word;
 }
+
+.html-tag { color: #ff9f0a; }
+.html-attr { color: #5ac8fa; }
+.html-string { color: #32d74b; }
+.html-comment { color: #8e8e93; }
+
 .editor p {
   margin: 0 0 10px 0;   /* отступ между абзацами */
   color:#111;
@@ -135,6 +148,7 @@ small { opacity:0.6; }
 
   <button onclick="addImage()">📷</button>
   <button onclick="toggleHTML()">HTML</button>
+  <button onclick="cleanHTML()">Clean HTML</button>
 </div>
 
 <div id="content" contenteditable="true" class="editor"></div>
@@ -168,6 +182,7 @@ let db;
 let editingId = null;
 let currentTagFilter = null;
 let isHTMLMode = false;
+let codeMirrorInstance = null;
 document.addEventListener("DOMContentLoaded", () => {
   document.execCommand("defaultParagraphSeparator", false, "p");
 });
@@ -210,24 +225,54 @@ function formatHTML(html) {
   return formatted.trim();
 }
 
+function normalizeHTML(html) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, "text/html");
+  return doc.body.innerHTML.trim();
+}
+
 function toggleHTML() {
+
   const editor = document.getElementById("content");
 
   if (!isHTMLMode) {
-    const prettyHTML = formatHTML(editor.innerHTML);
-    editor.textContent = prettyHTML;
 
-    editor.classList.add("html-mode");
-    editor.style.fontFamily = "monospace";
+    const normalized = normalizeHTML(editor.innerHTML);
+
+    // создаём textarea временно
+    const textarea = document.createElement("textarea");
+    textarea.value = normalized;
+    editor.innerHTML = "";
+    editor.appendChild(textarea);
+
+    codeMirrorInstance = CodeMirror.fromTextArea(textarea, {
+      mode: "htmlmixed",
+      theme: "material-darker",
+      lineNumbers: true,
+      lineWrapping: true,
+      autoCloseTags: true,
+      autoCloseBrackets: true
+    });
 
     isHTMLMode = true;
-  } else {
-    editor.innerHTML = editor.textContent;
 
-    editor.classList.remove("html-mode");
-    editor.style.fontFamily = "";
+  } else {
+
+    const newHTML = codeMirrorInstance.getValue();
+
+    codeMirrorInstance.toTextArea();
+    codeMirrorInstance = null;
+
+    editor.innerHTML = normalizeHTML(newHTML);
 
     isHTMLMode = false;
+  }
+}
+
+function cleanHTML() {
+  if (isHTMLMode && codeMirrorInstance) {
+    const cleaned = normalizeHTML(codeMirrorInstance.getValue());
+    codeMirrorInstance.setValue(cleaned);
   }
 }
 
