@@ -180,6 +180,9 @@ small { opacity:0.6; }
 
 <div id="content" contenteditable="true" class="editor"></div>
 
+<textarea id="voiceFallback"
+style="position:absolute;left:-9999px;height:1px;width:1px;"></textarea>
+
 <input type="file" id="imgInput" accept="image/*" style="display:none" onchange="insertImage(event)"></br>
 <input id="tags" placeholder="Теги через запятую (пример: идея, работа)" />
 
@@ -187,9 +190,9 @@ small { opacity:0.6; }
   Управление:
   <button class="primary" onclick="saveNote()">Сохранить</button>
   <button class="clear" onclick="clearForm()">Очистить</button>
-  <button onclick="startDictation()">🎤</button>
-  <button class="primary" onclick="speakCurrent()">Озвучить</button>
-  <button class="stop" onclick="stopSpeech()">Стоп</button>
+ <button onclick="startVoice()">🎤</button>
+ <span id="voiceStatus"></span>
+ <button onclick="toggleSpeech()">🔊</button>
 <button onclick="exportNotes()">Экспорт</button>
 <button onclick="document.getElementById('importFile').click()">Импорт</button>
 <input type="file" id="importFile" accept="application/json" style="display:none" onchange="importNotes(event)">
@@ -462,10 +465,7 @@ function clearFilter() {
 
 // ---------------- Speech (TTS) ----------------
 
-function speakCurrent() {
-  const text = document.getElementById("content").value;
-  speakText(text);
-}
+
 
 function readNote(id) {
   const tx = db.transaction("notes", "readonly");
@@ -477,72 +477,143 @@ function readNote(id) {
   };
 }
 
-function detectLanguage(text) {
-  const ukrainianPattern = /[іїєґІЇЄҐ]/;
-  return ukrainianPattern.test(text) ? "uk-UA" : "ru-RU";
+function getEditorText() {
+
+  if (isHTMLMode && codeMirrorInstance) {
+    return codeMirrorInstance.getValue();
+  }
+
+  const editor = document.getElementById("content");
+  return editor.innerText.trim();
+
 }
 
-function speakText(text) {
-  if (!text) return;
+function toggleSpeech() {
 
-  const lang = detectLanguage(text);
+  if (speechSynthesis.speaking) {
+    speechSynthesis.cancel();
+    return;
+  }
+
+  speakText();
+}
+
+function speakText() {
+
+  let text = window.getSelection().toString();
+
+  if (!text) {
+    text = getEditorText();
+  }
+
+  if (!text) return;
 
   const utterance = new SpeechSynthesisUtterance(text);
 
-  const voices = speechSynthesis.getVoices();
-
-  const selectedVoice = voices.find(v =>
-    v.lang === lang || v.lang.startsWith(lang.split("-")[0])
-  );
-
-  if (selectedVoice) {
-    utterance.voice = selectedVoice;
-  } else {
-    utterance.lang = lang;
-  }
+  utterance.lang = detectLanguage();
 
   speechSynthesis.cancel();
   speechSynthesis.speak(utterance);
 }
-function stopSpeech() {
-  speechSynthesis.cancel();
-}
+
 // ---------------- Voice Input (iPhone) ----------------
 
-let recognition = null;
-let isListening = false;
+function setVoiceStatus(text) {
+  document.getElementById("voiceStatus").textContent = text;
+}
 
-function startDictation() {
+function detectLanguage() {
 
-  if (!('webkitSpeechRecognition' in window)) {
-    alert("Голосовой ввод не поддерживается");
-    return;
-  }
+  const lang = navigator.language || navigator.userLanguage;
 
-  if (isListening) return;
+  if (lang.startsWith("uk")) return "uk-UA";
+  if (lang.startsWith("ru")) return "ru-RU";
+  return "en-US";
 
-  recognition = new webkitSpeechRecognition();
-  recognition.lang = "ru-RU";
-  recognition.continuous = false;
+}
+
+function insertTextIntoEditor(text) {
+
+  if (isHTMLMode) return;
+
+  const selection = window.getSelection();
+
+  if (!selection.rangeCount) return;
+
+  const range = selection.getRangeAt(0);
+
+  const node = document.createTextNode(text);
+
+  range.insertNode(node);
+
+  range.setStartAfter(node);
+  range.collapse(true);
+
+}
+
+function startSpeechAPI() {
+
+  const SpeechRecognition =
+    window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  const recognition = new SpeechRecognition();
+
+  recognition.lang = detectLanguage();
   recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
 
-  recognition.onstart = () => {
-    isListening = true;
-  };
-
-  recognition.onresult = (event) => {
-    const text = event.results[0][0].transcript;
-    const field = document.getElementById("content");
-    field.value += (field.value ? " " : "") + text;
-  };
-
-  recognition.onend = () => {
-    isListening = false;
-    recognition = null;
-  };
+  setVoiceStatus("🎤 Слушаю...");
 
   recognition.start();
+
+  recognition.onresult = function(event) {
+
+    const text = event.results[0][0].transcript;
+
+    insertTextIntoEditor(text + " ");
+
+  };
+
+  recognition.onend = function() {
+    setVoiceStatus("");
+  };
+
+  recognition.onerror = function() {
+    setVoiceStatus("⚠ Ошибка микрофона");
+  };
+
 }
+
+function startKeyboardDictation() {
+
+  const input = document.getElementById("voiceFallback");
+
+  input.value = "";
+  input.focus();
+
+  setTimeout(() => {
+
+    if (!input.value) return;
+
+    insertTextIntoEditor(input.value + " ");
+
+    input.value = "";
+
+  }, 6000);
+
+}
+
+function startVoice() {
+
+  if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
+    startSpeechAPI();
+  } else {
+    startKeyboardDictation();
+  }
+
+}
+
+
 
 // ---------------- EXPORT ----------------
 
