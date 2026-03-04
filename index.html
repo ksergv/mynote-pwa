@@ -190,6 +190,7 @@ style="position:absolute;left:-9999px;height:1px;width:1px;"></textarea>
   Управление:
   <button class="primary" onclick="saveNote()">Сохранить</button>
   <button class="clear" onclick="clearForm()">Очистить</button>
+  <button onclick="toggleHelp()">Help</button>
  <button onclick="startVoice()">🎤</button>
  <span id="voiceStatus"></span>
  <button onclick="toggleSpeech()">🔊</button>
@@ -199,7 +200,54 @@ style="position:absolute;left:-9999px;height:1px;width:1px;"></textarea>
 </div>
 
 <hr>
+<div id="helpBox" class="help-box" style="display:none;">
+<h3>Справка по блокноту</h3>
 
+<p><b>Создание заметки</b></p>
+<ul>
+<li>Введите заголовок в поле <b>Заголовок</b>.</li>
+<li>Введите текст заметки в редакторе.</li>
+<li>Нажмите <b>Очистить</b> для сохранения.</li>
+</ul>
+
+<p><b>Редактирование/просмотр</b></p>
+<ul> 
+<li>Нажмите <b>Редактировать</b> в оласти заметки в списке, чтобы открыть её.</li>
+<li>Измените текст и нажмите <b>Сохранить</b>.</li>
+</ul>
+
+<p><b>Форматирование текста</b></p>
+<ul>
+<li><b>B</b> — жирный текст</li>
+<li><b>I</b> — курсив</li>
+<li><b>🖍</b> — подсветка текста цветом</li>
+<li><b>HTML</b> — режим редактирования HTML</li>
+<li><b>📷</b> — вставка картинок..</li>
+... Также доступны списки, заголовки и выравнивание..
+</ul>
+
+<p><b>Голосовые функции</b></p>
+<ul>
+<li><b>🎤</b> — голосовой ввод текста.</li>
+<li><b>🔊</b> — озвучивание заметки.</li>
+<li><b>🔊</b> — остановить озвучивание.</li>
+</ul>
+
+<p><b>Теги</b></p>
+<ul>
+<li>Добавляйте теги через запятую.</li>
+<li>Используйте нажатие на тег  как фильтр для вывода заметок по выбранному тегу.</li>
+<li> кнопка <b>Сбросить фильтр</b> - выводит все записи.</li>
+</ul>
+
+<p><b>Советы</b></p>
+<ul>
+<li>Можно вставлять текст через копирование.</li>
+<li>Работает офлайн после установки приложения.</li>
+<li>Заметки сохраняются только в вашем браузере.</li>
+</ul>
+
+</div>
 <div class="filter-bar">
   <span id="filterInfo"></span>
  Фильтрация по тегам: <button onclick="clearFilter()">Сбросить фильтр</button>
@@ -216,6 +264,15 @@ let codeMirrorInstance = null;
 document.addEventListener("DOMContentLoaded", () => {
   document.execCommand("defaultParagraphSeparator", false, "p");
 });
+
+function toggleHelp() {
+
+  const help = document.getElementById("helpBox");
+
+  help.style.display =
+    help.style.display === "none" ? "block" : "none";
+
+}
 
 function formatHTML(html) {
 
