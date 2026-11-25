@@ -153,6 +153,17 @@ small { opacity:0.6; }
   box-shadow:0 5px 20px rgba(0,0,0,0.4);
   z-index:2000;
 }
+#imageSelector {
+    width: auto;
+    max-width: 220px;
+    padding: 7px;
+    margin: 4px;
+    border-radius: 8px;
+    background: #333;
+    color: white;
+    border: 1px solid #555;
+    font-size: 14px;
+}
 </style>
 </head>
 <body>
@@ -187,7 +198,11 @@ small { opacity:0.6; }
   <button style="background:#e0e0e0" onclick="highlightColor('#e0e0e0')"></button>
 </div>
 
-
+<select id="imageSelector"
+        onchange="insertSelectedImage(this)"
+        onmousedown="saveEditorSelection()">
+    <option value="">📷 Изображения</option>
+</select>
   <button onclick="toggleHTML()">HTML</button>
   <button onclick="cleanHTML()">Clean HTML</button>
 </div>
@@ -279,6 +294,7 @@ let isHTMLMode = false;
 let codeMirrorInstance = null;
 document.addEventListener("DOMContentLoaded", () => {
   document.execCommand("defaultParagraphSeparator", false, "p");
+  loadImageLibrary();
 });
 
 function toggleHelp() {
@@ -686,7 +702,129 @@ function startVoice() {
 
 }
 
+// ---------------- IMAGE LIBRARY ----------------
 
+let imageLibrary = [];
+let savedEditorRange = null;
+
+
+// Загрузка JSON
+async function loadImageLibrary() {
+
+    try {
+        const response = await fetch("images.json");
+
+        if (!response.ok) {
+            throw new Error("Ошибка загрузки images.json");
+        }
+
+        const data = await response.json();
+
+        imageLibrary = data.images || [];
+
+        const selector = document.getElementById("imageSelector");
+
+        imageLibrary.forEach(img => {
+
+            const option = document.createElement("option");
+
+            option.value = img.id;
+            option.textContent = img.title;
+
+            selector.appendChild(option);
+        });
+
+    } catch (error) {
+        console.error(error);
+    }
+}
+
+
+// Сохранение позиции курсора в редакторе
+function saveEditorSelection() {
+
+    if (isHTMLMode) return;
+
+    const editor = document.getElementById("content");
+    const selection = window.getSelection();
+
+    if (!selection.rangeCount) return;
+
+    const range = selection.getRangeAt(0);
+
+    if (editor.contains(range.commonAncestorContainer)) {
+        savedEditorRange = range.cloneRange();
+    }
+}
+
+
+// Вставка выбранного изображения
+function insertSelectedImage(selector) {
+
+    const id = Number(selector.value);
+
+    const img = imageLibrary.find(item => item.id === id);
+
+    if (!img) return;
+
+    const image = document.createElement("img");
+
+    image.src = img.url;
+    image.alt = img.title;
+
+    image.style.width = img.width || "25%";
+    image.style.float = img.float || "left";
+    image.style.margin = "0 10px 10px 0";
+
+    // HTML-режим CodeMirror
+    if (isHTMLMode && codeMirrorInstance) {
+
+        codeMirrorInstance.replaceSelection(
+            image.outerHTML,
+            "end"
+        );
+
+    } else {
+
+        const editor = document.getElementById("content");
+        const selection = window.getSelection();
+
+        editor.focus();
+
+        if (savedEditorRange &&
+            editor.contains(savedEditorRange.commonAncestorContainer)) {
+
+            selection.removeAllRanges();
+            selection.addRange(savedEditorRange);
+
+        } else {
+
+            const range = document.createRange();
+            range.selectNodeContents(editor);
+            range.collapse(false);
+
+            selection.removeAllRanges();
+            selection.addRange(range);
+        }
+
+        const range = selection.getRangeAt(0);
+
+        range.deleteContents();
+        range.insertNode(image);
+
+        // Перемещаем курсор после изображения
+        range.setStartAfter(image);
+        range.collapse(true);
+
+        selection.removeAllRanges();
+        selection.addRange(range);
+
+        savedEditorRange = range.cloneRange();
+    }
+
+    // Сбрасываем список
+    selector.value = "";
+}
 
 // ---------------- EXPORT ----------------
 

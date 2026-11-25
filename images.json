@@ -1,0 +1,18 @@
+{
+  "images": [
+    {
+      "id": 1,
+      "title": "Успех — The World",
+      "url": "https://res.cloudinary.com/dos2lc5ns/image/upload/v1795597279/21_-_%D0%A3%D1%81%D0%BF%D0%B5%D1%85_The_World_p8obep.jpg",
+      "width": "25%",
+      "float": "left"
+    },
+    {
+      "id": 2,
+      "title": "Круговорот — The Star",
+      "url": "https://res.cloudinary.com/dos2lc5ns/image/upload/v1795599006/17_-_%D0%9A%D1%80%D1%83%D0%B3%D0%BE%D0%B2%D0%BE%D1%80%D0%BE%D1%82_The_Star_vnz51b.jpg",
+      "width": "30%",
+      "float": "left"
+    }
+  ]
+}
