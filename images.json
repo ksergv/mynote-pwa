@@ -13,6 +13,13 @@
       "url": "https://res.cloudinary.com/dos2lc5ns/image/upload/v1795599006/17_-_%D0%9A%D1%80%D1%83%D0%B3%D0%BE%D0%B2%D0%BE%D1%80%D0%BE%D1%82_The_Star_vnz51b.jpg",
       "width": "30%",
       "float": "left"
+    },
+      {
+      "id": 3,
+      "title": "15 - Зависимость (The Devil)",
+      "url": "https://res.cloudinary.com/dos2lc5ns/image/upload/v1795610526/15_-_%D0%97%D0%B0%D0%B2%D0%B8%D1%81%D0%B8%D0%BC%D0%BE%D1%81%D1%82%D1%8C_The_Devil_pvxnd2.jpg",
+      "width": "30%",
+      "float": "left"
     }
   ]
 }
